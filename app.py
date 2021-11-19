@@ -79,6 +79,9 @@ def precipitation():
         prcp_dict[date] = prcp
     return jsonify(prcp_dict)
 
+#################################################
+# Flask Route to diplay all the stations
+#################################################
 @app.route("/api/v1.0/stations")
 def stations():
     # Create the session
@@ -89,17 +92,26 @@ def stations():
     result = list(np.ravel(stations))
     return jsonify(result)
 
+#################################################
+# Flask Route to diplay the temperature data for 
+# the most active station
+#################################################
 @app.route("/api/v1.0/tobs")
 def tobs():
-
+    # Create the session
     session = Session(engine)
+
+    #define count function
     count_ = func.count('*').label('count_rec')
+
+    #Get the most active station
     active_station = session.query(count_, Measurement.station).\
         filter(Measurement.station == Station.station).\
         group_by(Measurement.station).order_by(count_.desc()).first()
 
     most_active_station = active_station.station
     
+    #Get emperations for the most active station for the most recent 12 months
     temperature_data = session.query( Measurement.tobs).\
                     filter(Measurement.station == most_active_station).\
                     filter(Measurement.date > most_recent_date).all()
@@ -107,20 +119,44 @@ def tobs():
     session.close()
     return jsonify(result)
 
+#################################################
+# Flask Route to diplay the temperature data  
+# stats for all the readings since the date passed
+# in as a parameter 
+#################################################
 @app.route("/api/v1.0/<start>")
 def start_temp(start):
+    # Create the session
     session = Session(engine)
-    sel = [func.min(Measurement.tobs), func.min(Measurement.tobs)]
-    session.query()
-    session.close()
-    return
 
+    #define the functions for mn, max and average
+    sel = [func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
+
+    #Get the temperature measurement stats for all the temp measurements since the passed in date
+    measurements = session.query(*sel).filter(Measurement.date > start).all()
+    result = list(np.ravel(measurements))
+    session.close()
+    return jsonify(result)
+
+
+#################################################
+# Flask Route to diplay the temperature data  
+# stats for all the readings between the 
+# start and end dates passed in as a parameter 
+#################################################
 @app.route("/api/v1.0/<start>/<end>")
 def start_end_temp(start,end):
+    # Create the session
     session = Session(engine)
-    session.query()
+
+    #define the functions for mn, max and average
+    sel = [func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)]
+
+    #Get the temperature measurement stats for all the temp measurements between the passed in dates
+    measurements = session.query(*sel).filter(Measurement.date > start).filter(Measurement.date < end).all()
+    result = list(np.ravel(measurements))
     session.close()
-    return
+    return jsonify(result)
 
 
 
